@@ -1,6 +1,6 @@
 #  ContextKey
 
-<img width="1024" height="1024" alt="ContextKey_LogoDark" src="https://github.com/user-attachments/assets/59f549cf-564b-4881-b573-98d9e98fd394" />
+<img width="250" height="250" alt="ContextKey_LogoDark" src="https://github.com/user-attachments/assets/59f549cf-564b-4881-b573-98d9e98fd394" />
 
 
 > **Because Context is Key!**
