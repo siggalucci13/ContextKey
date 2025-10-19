@@ -15,9 +15,9 @@ A macOS menu bar app that brings AI to your fingertips. Select any text, press a
 
 ContextKey lets you:
 - 🚀 **Select text anywhere** and instantly query AI about it
+- 🖼️ **Select images and files in finder** for analysis
 - 💬 **Keep conversation history** with full context preservation
 - 🤖 **Use any LLM**: Ollama (local), OpenAI, Anthropic, xAI, Google Gemini, or any custom API
-- 🖼️ **Attach images and files** for analysis (vision models)
 - ⚡ **Two modes**: Full-featured main window + quick popup window
 - 🎯 **Control context**: Choose what to include in each query
 
@@ -157,12 +157,12 @@ All cloud APIs use the **"Custom"** option. Here are examples:
 
 ### Quick Window (Recommended)
 
-1. **Select text** in any app
-2. Press **`Cmd+Shift+K`**
+1. **Select text** in any app or a file in Finder.
+2. Press **`Cmd+Shift+K`** OR the hotkey you set in settings.
 3. Ask your question
 4. Get instant answers!
 
-Or press **`Cmd+Option+K`** to open without context.
+Or press **`Cmd+Option+K`** or the hotkey you set in settings to open without context.
 
 ### Main Window
 
