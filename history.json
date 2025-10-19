@@ -1,0 +1,16 @@
+[
+  {
+    "id": "A1B2C3D4-E5F6-7890-1234-56789ABCDEF0",
+    "timestamp": "2024-08-24T12:34:56Z",
+    "context": "General inquiry",
+    "question": "What is the weather like today?",
+    "answer": "The weather today is sunny with a high of 25 degrees Celsius."
+  },
+  {
+    "id": "F0E9D8C7-B6A5-4321-9876-54321FEDCBA0",
+    "timestamp": "2024-08-24T13:45:07Z",
+    "context": "Personal Finance",
+    "question": "How do I set a budget?",
+    "answer": "To set a budget, start by listing your income and expenses, then allocate funds to each expense category."
+  }
+]

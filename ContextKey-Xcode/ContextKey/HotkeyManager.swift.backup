@@ -1,0 +1,346 @@
+import Cocoa
+import Carbon
+import PDFKit
+
+class HotkeyManager: ObservableObject {
+    static let shared = HotkeyManager()
+    private var eventHandler: EventHandlerRef?
+    private var hotKeyRef: EventHotKeyRef?
+    @Published var currentHotkey: UInt32 = UInt32(kVK_ANSI_J)
+    @Published var currentModifiers: UInt32 = UInt32(cmdKey)
+
+    private let userDefaultsKeyCode = "hotkeyKeyCode"
+    private let userDefaultsModifiers = "hotkeyModifiers"
+
+    private init() {
+        loadHotkeysFromDefaults()
+        registerHotkeys()
+    }
+
+    private func loadHotkeysFromDefaults() {
+        if UserDefaults.standard.object(forKey: userDefaultsKeyCode) != nil {
+            currentHotkey = UInt32(UserDefaults.standard.integer(forKey: userDefaultsKeyCode))
+            currentModifiers = UInt32(UserDefaults.standard.integer(forKey: userDefaultsModifiers))
+        }
+    }
+
+    private func saveHotkeysToDefaults() {
+        UserDefaults.standard.set(Int(currentHotkey), forKey: userDefaultsKeyCode)
+        UserDefaults.standard.set(Int(currentModifiers), forKey: userDefaultsModifiers)
+    }
+
+    func registerHotkeys() {
+        // Unregister existing hotkey
+        unregisterHotkeys()
+
+        var eventType = EventTypeSpec(
+            eventClass: OSType(kEventClassKeyboard),
+            eventKind: OSType(kEventHotKeyPressed)
+        )
+
+        let selfPtr = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+
+        let err = InstallEventHandler(
+            GetApplicationEventTarget(),
+            { (_, eventRef, userData) -> OSStatus in
+                guard let eventRef = eventRef else { return OSStatus(eventNotHandledErr) }
+                guard let userData = userData else { return OSStatus(eventNotHandledErr) }
+                let hotKeyManager = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
+                return hotKeyManager.handleHotKeyEvent(eventRef)
+            },
+            1,
+            &eventType,
+            selfPtr,
+            &eventHandler
+        )
+
+        if err != noErr {
+            print("Failed to install event handler: \(err)")
+            return
+        }
+
+        // Register the hotkey
+        var hotKeyID = EventHotKeyID()
+        hotKeyID.signature = OSType(("CTXK" as NSString).utf8String!.pointee) << 24 |
+                             OSType(("CTXK" as NSString).utf8String!.advanced(by: 1).pointee) << 16 |
+                             OSType(("CTXK" as NSString).utf8String!.advanced(by: 2).pointee) << 8 |
+                             OSType(("CTXK" as NSString).utf8String!.advanced(by: 3).pointee)
+        hotKeyID.id = 1
+
+        let hotKeyErr = RegisterEventHotKey(
+            currentHotkey,
+            currentModifiers,
+            hotKeyID,
+            GetApplicationEventTarget(),
+            0,
+            &hotKeyRef
+        )
+
+        if hotKeyErr != noErr {
+            print("Failed to register hotkey: \(hotKeyErr)")
+        } else {
+            print("Hotkey registered successfully: keyCode=\(currentHotkey), modifiers=\(currentModifiers)")
+        }
+    }
+
+    private func unregisterHotkeys() {
+        // Unregister the hotkey reference
+        if let hotKeyRef = hotKeyRef {
+            UnregisterEventHotKey(hotKeyRef)
+            self.hotKeyRef = nil
+        }
+
+        // Remove event handler
+        if let handler = eventHandler {
+            RemoveEventHandler(handler)
+            eventHandler = nil
+        }
+    }
+
+    private func handleHotKeyEvent(_ event: EventRef) -> OSStatus {
+        var hotKeyID = EventHotKeyID()
+        let err = GetEventParameter(
+            event,
+            EventParamName(kEventParamDirectObject),
+            EventParamName(typeEventHotKeyID),
+            nil,
+            MemoryLayout<EventHotKeyID>.size,
+            nil,
+            &hotKeyID
+        )
+
+        if err == noErr && hotKeyID.id == 1 {
+            print("Compact window hotkey pressed")
+            copyAndOpenCompactWindow()
+            return noErr
+        }
+
+        return OSStatus(eventNotHandledErr)
+    }
+
+    private func copyAndOpenCompactWindow() {
+        // Copy selected content on a background thread to avoid blocking
+        DispatchQueue.global(qos: .userInitiated).async {
+            // First, simulate Cmd+C to copy whatever is selected
+            self.performCopy()
+
+            // Wait for copy operation to complete
+            Thread.sleep(forTimeInterval: 0.2)
+
+            // Now check what we got - file URLs or text?
+            if let filePaths = self.checkForFileURLsInPasteboard(), !filePaths.isEmpty {
+                print("📁 Selected files detected: \(filePaths)")
+                self.handleSelectedFiles(filePaths)
+                return
+            }
+
+            // If no files, treat as text
+            let pasteboard = NSPasteboard.general
+            if let text = pasteboard.string(forType: .string), !text.isEmpty {
+                print("📝 Copied text: \(text.prefix(100))")
+                DispatchQueue.main.async {
+                    AppDelegate.shared.openCompactQueryWindow()
+                }
+            } else {
+                print("⚠️ Nothing copied")
+                DispatchQueue.main.async {
+                    AppDelegate.shared.openCompactQueryWindow()
+                }
+            }
+        }
+    }
+
+    private func getSelectedFilePaths() -> [String]? {
+        print("🔍 Attempting to get selected files...")
+
+        // Method 1: Try to get file URLs from pasteboard (more reliable)
+        let pasteboard = NSPasteboard.general
+        if let fileURLs = pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL] {
+            let filePaths = fileURLs.map { $0.path }
+            if !filePaths.isEmpty {
+                print("✅ Got \(filePaths.count) file(s) from pasteboard")
+                for path in filePaths {
+                    print("✅ File: \(path)")
+                }
+                return filePaths
+            }
+        }
+
+        print("⚠️ No files found in pasteboard, trying AppleScript...")
+
+        // Method 2: Try AppleScript (requires Automation permissions)
+        let script = """
+        tell application "Finder"
+            set theSelection to selection
+            set filePaths to {}
+            repeat with theItem in theSelection
+                set end of filePaths to POSIX path of (theItem as alias)
+            end repeat
+            return filePaths
+        end tell
+        """
+
+        var error: NSDictionary?
+        if let scriptObject = NSAppleScript(source: script) {
+            let output = scriptObject.executeAndReturnError(&error)
+            if let error = error {
+                print("❌ AppleScript error: \(error)")
+                print("⚠️ You may need to grant Automation permissions in System Preferences → Privacy & Security → Automation")
+                return nil
+            }
+
+            print("✅ AppleScript executed successfully")
+            print("✅ Output items count: \(output.numberOfItems)")
+
+            var paths: [String] = []
+            for i in 1...output.numberOfItems {
+                if let path = output.atIndex(i)?.stringValue {
+                    print("✅ Found file path: \(path)")
+                    paths.append(path)
+                }
+            }
+
+            if paths.isEmpty {
+                print("⚠️ No file paths extracted from AppleScript output")
+                return nil
+            }
+
+            return paths
+        } else {
+            print("❌ Could not create NSAppleScript object")
+        }
+        return nil
+    }
+
+    private func handleSelectedFiles(_ filePaths: [String]) {
+        var fileContents: [(path: String, name: String, content: String)] = []
+
+        for filePath in filePaths {
+            let fileURL = URL(fileURLWithPath: filePath)
+            let fileName = fileURL.lastPathComponent
+            let fileExtension = fileURL.pathExtension.lowercased()
+
+            print("📁 Processing file: \(fileName) (.\(fileExtension))")
+
+            // Try to read file contents based on file type
+            var content: String?
+
+            // Handle PDFs
+            if fileExtension == "pdf" {
+                content = extractPDFText(from: fileURL)
+                if content != nil {
+                    print("✅ Extracted PDF text: \(fileName), size: \(content!.count) chars")
+                }
+            }
+            // Handle text-based files
+            else if ["txt", "swift", "py", "js", "ts", "json", "xml", "html", "css", "md", "yaml", "yml", "sh", "c", "cpp", "h", "java", "rb", "go", "rs"].contains(fileExtension) {
+                content = try? String(contentsOf: fileURL, encoding: .utf8)
+                if content != nil {
+                    print("✅ Read text file: \(fileName), size: \(content!.count) chars")
+                }
+            }
+            // Try UTF-8 for unknown text files
+            else {
+                content = try? String(contentsOf: fileURL, encoding: .utf8)
+                if content != nil {
+                    print("✅ Read file as UTF-8: \(fileName), size: \(content!.count) chars")
+                } else {
+                    print("⚠️ Could not read file: \(fileName) - might be binary")
+                }
+            }
+
+            if let content = content, !content.isEmpty {
+                fileContents.append((path: filePath, name: fileName, content: content))
+            } else {
+                print("❌ Failed to extract content from: \(fileName)")
+                // Add file with error message
+                fileContents.append((path: filePath, name: fileName, content: "[Could not read file content - file may be binary or corrupted]"))
+            }
+        }
+
+        if !fileContents.isEmpty {
+            // Build context string - JUST RAW CONTENT, nothing else
+            // NO mention of files, documents, or any metadata
+            var contextString = ""
+
+            for (index, file) in fileContents.enumerated() {
+                if index > 0 {
+                    contextString += "\n\n---\n\n"
+                }
+                contextString += file.content
+            }
+
+            print("📄 Built context string with \(fileContents.count) files")
+            print("📄 Context length: \(contextString.count) characters")
+            print("📄 First 500 chars: \(String(contextString.prefix(500)))")
+
+            DispatchQueue.main.async {
+                // Create FileAttachment objects and open window directly
+                let files = fileContents.map { FileAttachment(name: $0.name, path: $0.path) }
+                AppDelegate.shared.openCompactQueryWindowWithFiles(context: contextString, files: files)
+            }
+        } else {
+            print("⚠️ No file contents were successfully read!")
+        }
+    }
+
+    private func copySelectedText() -> String? {
+        let source = CGEventSource(stateID: .hidSystemState)
+
+        let cmdDown = CGEvent(keyboardEventSource: source, virtualKey: 0x37, keyDown: true)
+        let cKeyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: true)
+        let cKeyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: false)
+        let cmdUp = CGEvent(keyboardEventSource: source, virtualKey: 0x37, keyDown: false)
+
+        cmdDown?.flags = .maskCommand
+        cKeyDown?.flags = .maskCommand
+        cKeyUp?.flags = .maskCommand
+
+        cmdDown?.post(tap: .cghidEventTap)
+        cKeyDown?.post(tap: .cghidEventTap)
+        cKeyUp?.post(tap: .cghidEventTap)
+        cmdUp?.post(tap: .cghidEventTap)
+
+        // Wait a bit for the copy operation to complete
+        Thread.sleep(forTimeInterval: 0.15)
+
+        // Now get the text from the pasteboard
+        let pasteboard = NSPasteboard.general
+        return pasteboard.string(forType: .string)
+    }
+
+    func updateHotkey(_ newHotkey: UInt32, modifiers: UInt32) {
+        print("Updating hotkey to: keyCode=\(newHotkey), modifiers=\(modifiers)")
+        currentHotkey = newHotkey
+        currentModifiers = modifiers
+        saveHotkeysToDefaults()
+        registerHotkeys()
+    }
+
+    private func extractPDFText(from url: URL) -> String? {
+        guard let pdfDocument = PDFDocument(url: url) else {
+            print("❌ Could not open PDF document")
+            return nil
+        }
+
+        var extractedText = ""
+        for pageIndex in 0..<pdfDocument.pageCount {
+            guard let page = pdfDocument.page(at: pageIndex) else { continue }
+            if let pageText = page.string {
+                extractedText += pageText + "\n\n"
+            }
+        }
+
+        return extractedText.isEmpty ? nil : extractedText
+    }
+
+    deinit {
+        unregisterHotkeys()
+    }
+}
+
+extension Notification.Name {
+    static let openCompactWindow = Notification.Name("openCompactWindow")
+    static let triggerCompactWindow = Notification.Name("triggerCompactWindow")
+    static let openCompactWindowWithFiles = Notification.Name("openCompactWindowWithFiles")
+}
