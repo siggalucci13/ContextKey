@@ -34,7 +34,7 @@ https://github.com/user-attachments/assets/fad40786-e343-462a-93b3-87a8af7a0bf9
 
 ## 🚀 Quick Start
 
-1. **Download** the app from [Releases](https://github.com/yourusername/ContextKey/releases)
+1. **Download** the .dmg file from [Releases](https://github.com/yourusername/ContextKey/releases)
 2. **Move** to Applications folder and launch
 3. **Grant permissions** when prompted (File Access, Accessibility)
 4. **Select a folder** to store your conversations and settings
