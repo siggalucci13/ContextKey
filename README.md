@@ -25,9 +25,12 @@ ContextKey lets you:
 
 ## 🎬 Demo
 
-[Video demo coming soon]
 
 ---
+
+https://github.com/user-attachments/assets/fad40786-e343-462a-93b3-87a8af7a0bf9
+
+
 
 ## 🚀 Quick Start
 
