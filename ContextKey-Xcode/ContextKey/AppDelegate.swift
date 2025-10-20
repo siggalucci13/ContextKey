@@ -21,7 +21,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             defer: false
         )
         window.title = "ContextKey Quick Window"
-        window.center()
+
+        // Use saved position if available, otherwise center
+        if let savedPosition = DataManager.shared.quickWindowPosition {
+            window.setFrameOrigin(savedPosition)
+        } else {
+            window.center()
+        }
+
         window.delegate = self
         window.isReleasedWhenClosed = false // Keep window in memory
 
@@ -47,7 +54,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             defer: false
         )
         window.title = "ContextKey Quick Window"
-        window.center()
+
+        // Use saved position if available, otherwise center
+        if let savedPosition = DataManager.shared.quickWindowPosition {
+            window.setFrameOrigin(savedPosition)
+        } else {
+            window.center()
+        }
+
         window.delegate = self
         window.isReleasedWhenClosed = false
 
@@ -76,7 +90,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             defer: false
         )
         window.title = "ContextKey Quick Window"
-        window.center()
+
+        // Use saved position if available, otherwise center
+        if let savedPosition = DataManager.shared.quickWindowPosition {
+            window.setFrameOrigin(savedPosition)
+        } else {
+            window.center()
+        }
+
         window.delegate = self
         window.isReleasedWhenClosed = false
 
@@ -133,8 +154,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     func windowWillClose(_ notification: Notification) {
         if let window = notification.object as? NSWindow, window === compactQueryWindow {
             print("Compact query window closing")
-            // Keep the reference but mark it as closed
-            // We'll check isVisible before reusing
+            // Save the window position before closing
+            DataManager.shared.saveQuickWindowPosition(window.frame.origin)
+        }
+    }
+
+    func windowDidMove(_ notification: Notification) {
+        if let window = notification.object as? NSWindow, window === compactQueryWindow {
+            // Save position whenever user moves the window
+            DataManager.shared.saveQuickWindowPosition(window.frame.origin)
         }
     }
 

@@ -648,11 +648,9 @@ struct ContentView: View {
             fullContextText = getFullContextWithFiles(selectedHistoryItem)
 
             if let selectedItem = selectedHistoryItem, !selectedItem.conversation.isEmpty {
-                let conversationHistory = selectedItem.conversation.map { $0.isUser ? "User: \($0.content)" : "Assistant: \($0.content)" }.joined(separator: "\n")
+                let conversationHistory = selectedItem.conversation.map { $0.content }.joined(separator: "\n\n")
                 if !fullContextText.isEmpty {
-                    fullContextText += "\n\nConversation history:\n"
-                } else {
-                    fullContextText = "Conversation history:\n"
+                    fullContextText += "\n\n"
                 }
                 fullContextText += conversationHistory
             }
@@ -722,11 +720,9 @@ struct ContentView: View {
 
             // Add conversation history
             if !item.conversation.isEmpty {
-                let conversationHistory = item.conversation.map { $0.isUser ? "User: \($0.content)" : "Assistant: \($0.content)" }.joined(separator: "\n")
+                let conversationHistory = item.conversation.map { $0.content }.joined(separator: "\n\n")
                 if !context.isEmpty {
-                    context += "\n\nConversation history:\n"
-                } else {
-                    context = "Conversation history:\n"
+                    context += "\n\n"
                 }
                 context += conversationHistory
             }

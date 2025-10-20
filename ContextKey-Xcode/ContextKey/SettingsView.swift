@@ -1808,3 +1808,4 @@ struct HotkeyRecorderTextField: NSViewRepresentable {
         }
     }
 }
+

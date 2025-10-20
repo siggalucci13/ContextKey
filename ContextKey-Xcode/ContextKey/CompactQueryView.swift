@@ -191,17 +191,15 @@ struct CompactQueryView: View {
             fullContextText = getFullContext()
 
             if !chatManager.messages.isEmpty {
-                let conversationHistory = chatManager.messages.map { $0.isUser ? "User: \($0.content)" : "Assistant: \($0.content)" }.joined(separator: "\n")
+                let conversationHistory = chatManager.messages.map { $0.content }.joined(separator: "\n\n")
                 if !fullContextText.isEmpty {
-                    fullContextText += "\n\nPrevious conversation:\n"
-                } else {
-                    fullContextText = "Previous conversation:\n"
+                    fullContextText += "\n\n"
                 }
                 fullContextText += conversationHistory
             }
 
             if !fullContextText.isEmpty {
-                fullContextText += "\n\nNew question: \(question)"
+                fullContextText += "\n\n\(question)"
             } else {
                 fullContextText = question
             }
@@ -209,7 +207,7 @@ struct CompactQueryView: View {
             // Include only context
             fullContextText = getFullContext()
             if !fullContextText.isEmpty {
-                fullContextText += "\n\nQuestion: \(question)"
+                fullContextText += "\n\n\(question)"
             } else {
                 fullContextText = question
             }
@@ -696,31 +694,29 @@ struct CompactQueryView: View {
             }
 
             if chatManager.messages.count > 1 {
-                let conversationHistory = chatManager.messages.dropLast().map { $0.isUser ? "User: \($0.content)" : "Assistant: \($0.content)" }.joined(separator: "\n")
+                let conversationHistory = chatManager.messages.dropLast().map { $0.content }.joined(separator: "\n\n")
                 if !conversationHistory.isEmpty {
                     if !combinedInput.isEmpty {
-                        combinedInput += "\n\nPrevious conversation:\n"
-                    } else {
-                        combinedInput = "Previous conversation:\n"
+                        combinedInput += "\n\n"
                     }
                     combinedInput += conversationHistory
                 }
             }
 
             if !combinedInput.isEmpty {
-                combinedInput += "\n\nQuestion: \(question)"
+                combinedInput += "\n\n\(question)"
             } else {
-                combinedInput = "Question: \(question)"
+                combinedInput = question
             }
         } else if includeContextOnly {
             let fullContext = getFullContext()
             if !fullContext.isEmpty {
-                combinedInput = "\(fullContext)\n\nQuestion: \(question)"
+                combinedInput = "\(fullContext)\n\n\(question)"
             } else {
-                combinedInput = "Question: \(question)"
+                combinedInput = question
             }
         } else {
-            combinedInput = "Question: \(question)"
+            combinedInput = question
         }
         
         guard let activeConfig = llmManager.activeConfiguration else {

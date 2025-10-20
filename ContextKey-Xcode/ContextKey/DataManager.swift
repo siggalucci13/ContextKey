@@ -10,8 +10,10 @@ class DataManager: NSObject, ObservableObject {
     @Published var history: [HistoryItem] = []
     @Published var currentContext: String = ""
     @Published var currentConversation: [HistoryItem.Message] = []
+    @Published var quickWindowPosition: CGPoint?
 
     private let bookmarkKey = "DirectoryBookmark"
+    private let quickWindowPositionKey = "QuickWindowPosition"
     @Published private(set) var hasFileAccess: Bool = false
     private var accessedDirectoryURL: URL?
 
@@ -24,6 +26,21 @@ class DataManager: NSObject, ObservableObject {
     private override init() {
         super.init()
         restoreFileAccess()
+        loadQuickWindowPosition()
+    }
+
+    func saveQuickWindowPosition(_ position: CGPoint) {
+        quickWindowPosition = position
+        let dict = ["x": position.x, "y": position.y]
+        UserDefaults.standard.set(dict, forKey: quickWindowPositionKey)
+    }
+
+    private func loadQuickWindowPosition() {
+        if let dict = UserDefaults.standard.dictionary(forKey: quickWindowPositionKey),
+           let x = dict["x"] as? CGFloat,
+           let y = dict["y"] as? CGFloat {
+            quickWindowPosition = CGPoint(x: x, y: y)
+        }
     }
 
     private func restoreFileAccess() {
